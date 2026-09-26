@@ -1,18 +1,15 @@
 name: Deploy to GitHub Pages
 
-# 推送到 main 即自动构建 web/ 并发布到 GitHub Pages；也可在 Actions 页手动触发
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
-# GitHub Pages 部署所需权限
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# 同一时间只跑一个部署，新推送取消进行中的旧部署
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -22,19 +19,32 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: web # 前端应用在 web/ 子目录
+        working-directory: web
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - run: npm ci
-      - run: npm run build # tsc -b && vite build → web/dist
-      - uses: actions/upload-pages-artifact@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
         with:
-          path: web/dist # 相对仓库根（uses 步骤不受 working-directory 影响）
+          path: web/dist
 
   deploy:
     needs: build
@@ -42,6 +52,8 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
+
     steps:
-      - id: deployment
+      - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
