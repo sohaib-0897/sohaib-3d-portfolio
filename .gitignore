@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+web/node_modules/
+
+# Production build artifacts
+dist/
+web/dist/
+dist-ssr/
+*.tsbuildinfo
+.vite/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+deploy/
+
+# Blender backups, references, previews, and temporary files
+*.blend1
+*.blend2
+*.blend@
+blender/backups/
+blender/previews/
+blender/refs/
+blender/tmp/
+blender/renders/
+blender/sen.blend
+
+# Internal documentation and session notes (kept locally only)
+docs/internal/
+
+# QA, browser, and test output
+test-results/
+playwright-report/
+coverage/
+scripts/qa/screenshots/
+.playwright-mcp/
+
+# OS and Editor metadata
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Large temporary archives
+*.zip

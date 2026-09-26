@@ -1,0 +1,33 @@
+# Auto-detect text files and normalize line endings to LF
+* text=auto eol=lf
+
+# Explicit text files
+*.ts text
+*.tsx text
+*.js text
+*.cjs text
+*.mjs text
+*.json text
+*.css text
+*.html text
+*.md text
+*.yml text
+*.yaml text
+*.sh text eol=lf
+
+# 3D and binary assets
+*.blend binary
+*.blend* binary
+*.glb binary
+*.gltf binary
+*.hdr binary
+*.woff2 binary
+*.woff binary
+*.ttf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.zip binary
