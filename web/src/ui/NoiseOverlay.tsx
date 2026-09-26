@@ -5,7 +5,7 @@ import { DoubleSide, Vector2 } from 'three'
 // 全屏胶片噪点蒙层（移植自 speakio 首页）：独立 Canvas + multiply 混合，
 // frameloop="demand" 节流到 ~0.8fps，几乎不占性能。
 const CONFIG = { zIndex: 100, opacity: 0.5, alpha: 1 }
-const SHADER_VERSION = 'noise-v1'
+const SHADER_VERSION = 'noise-v2'
 const num = (v: number) => v.toFixed(3)
 
 const vertexShader = /* glsl */ `
@@ -21,8 +21,12 @@ const fragmentShader = /* glsl */ `
   uniform vec2 uResolution;
   varying vec2 vUv;
 
+  // sin-free hash (Dave Hoskins, hash12): the classic fract(sin(dot)) hash loses precision on large inputs
+  // and showed up as diagonal banding across the hero face on some GPUs / high-DPR screens
   float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
   }
 
   float noise(vec2 p) {

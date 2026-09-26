@@ -128,6 +128,14 @@ canvas {
 .scroll-cue-label {
   animation: cueLabelPulse 2.4s ease-in-out infinite;
 }
+/* phones: the hero pull-back puts the lanyard badge right behind the cue (unreadable on its printed text);
+   touch users scroll anyway, so the cue is hidden there (space kept: the hero text must not drop onto the
+   bottom-left corner label) */
+@media (max-width: 640px) {
+  .scroll-cue {
+    visibility: hidden;
+  }
+}
 
 /* 竖向轨道 + 循环向下流动的光点 */
 .scroll-cue-track {
@@ -316,20 +324,22 @@ canvas {
   left: 50%;
   width: min(1040px, 92vw); /* 92vw：留出滚动条宽度，窄视口也不溢出 */
   transform: translateX(-50%);
-  top: 24%;
+  /* face-correction pass: the glow now also sits under the lower half of the name (top 24% → 6%) and is a
+     touch denser in its core; still a soft edge-less ellipse, not a card */
+  top: 6%;
   bottom: -46%;
   pointer-events: none;
   background: radial-gradient(
     closest-side,
-    rgba(7, 10, 15, 0.6) 0%,
-    rgba(7, 10, 15, 0.48) 45%,
-    rgba(7, 10, 15, 0.2) 75%,
+    rgba(7, 10, 15, 0.64) 0%,
+    rgba(7, 10, 15, 0.5) 45%,
+    rgba(7, 10, 15, 0.22) 75%,
     rgba(7, 10, 15, 0) 100%
   );
 }
 @media (max-width: 640px) {
   .about-intro::before {
-    top: 34%;
+    top: 14%;
     bottom: -30%;
   }
 }
@@ -342,8 +352,8 @@ canvas {
   letter-spacing: 0.01em;
   color: var(--ink);
   margin-bottom: 0.22em;
-  /* 压在人物与杂色背景上：柔和暗晕保证姓名一眼可读 */
-  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.55);
+  /* 压在人物与杂色背景上：柔和暗晕保证姓名一眼可读（crisp contact shadow + wide soft glow） */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), 0 3px 10px rgba(0, 0, 0, 0.35), 0 4px 28px rgba(0, 0, 0, 0.45);
 }
 
 .about-body {

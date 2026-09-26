@@ -173,17 +173,25 @@ function Man2({
     parallaxEase: 0.1,
     mobilePullback: 1.2,
     mobileTimelineShift: 0.12,
+    // hero-only pull-back about the eye anchor (eyes stay put on screen, the head gets a little smaller so the
+    // name sits below the chin instead of across it); fades to 1 before the first résumé stop (s: -1 → -0.45)
+    heroPullback: 1.12,
+    mobileHeroPullback: 1.2,
   }
 
+  // limitYaw / limitPitch: hard caps (degrees) on the final eye rotation so the eyes look toward the cursor
+  // without rolling the iris under the lids; crossEye kept small (a slight convergence, not a cartoon cross-eye).
   const eye = {
     enabled: true,
     gain: 3,
     maxYaw: 15,
     maxPitch: 8,
+    limitYaw: 20,
+    limitPitch: 11,
     invertX: false,
     invertY: false,
-    smooth: 0.44,
-    crossEye: 45,
+    smooth: 0.3,
+    crossEye: 6,
     crossRadius: 0.25,
   }
 
@@ -573,6 +581,11 @@ function Man2({
         .applyQuaternion(paraQuat.current)
       // 移动端沿「焦点→相机」方向整体拉远：焦点屏幕位置不变，主体更小、留白更多
       if (isMobile.current) tmpVec.current.multiplyScalar(cam.mobilePullback)
+      const heroW = 1 - THREE.MathUtils.smoothstep(s, -1, -0.45)
+      if (heroW > 0) {
+        const pull = isMobile.current ? cam.mobileHeroPullback : cam.heroPullback
+        tmpVec.current.multiplyScalar(THREE.MathUtils.lerp(1, pull, heroW))
+      }
       tmpVec.current.add(focusRef.current)
       camera.position.copy(tmpVec.current)
       camera.quaternion.multiplyQuaternions(paraQuat.current, camQuat.current)
@@ -827,8 +840,10 @@ function Man2({
 
     const mx = mouse.current.x - ax
     const my = mouse.current.y - ay
-    const yawBase = sx * mx * THREE.MathUtils.degToRad(eye.maxYaw) * eye.gain
-    const pitch = sy * -my * THREE.MathUtils.degToRad(eye.maxPitch) * eye.gain
+    const yawLim = THREE.MathUtils.degToRad(eye.limitYaw)
+    const pitchLim = THREE.MathUtils.degToRad(eye.limitPitch)
+    const yawBase = THREE.MathUtils.clamp(sx * mx * THREE.MathUtils.degToRad(eye.maxYaw) * eye.gain, -yawLim, yawLim)
+    const pitch = THREE.MathUtils.clamp(sy * -my * THREE.MathUtils.degToRad(eye.maxPitch) * eye.gain, -pitchLim, pitchLim)
 
     const dist = Math.hypot(mx, my)
     const convWeight = THREE.MathUtils.clamp(1 - dist / eye.crossRadius, 0, 1)
