@@ -284,6 +284,13 @@ canvas {
   .hm-right {
     display: none;
   }
+  /* 左下角标拆成三行竖排：宽度收窄到工牌（画面中线）左侧，位置不变 */
+  .hm-bl span {
+    display: block;
+  }
+  .hm-bl .hm-sep {
+    display: none;
+  }
 }
 
 /* ---------- About 叠层（标题 Rancho + 正文 Cormorant Upright） ---------- */
@@ -2223,5 +2230,117 @@ canvas {
     margin-top: 0.9em;
     padding: 10px 0;
     font-size: 12px;
+  }
+}
+
+/* ---------- 联系面板（工牌段 Let’s Connect →）：小卡片，不是长篇故事面板 ---------- */
+.contact-panel {
+  position: fixed;
+  z-index: 85;
+  top: 0;
+  bottom: 0;
+  right: 6vw;
+  margin: auto 0;
+  height: fit-content;
+  max-height: calc(100svh - 32px);
+  width: min(400px, 36vw);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 30px 28px 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(10, 13, 18, 0.84);
+  backdrop-filter: blur(16px) saturate(1.1);
+  -webkit-backdrop-filter: blur(16px) saturate(1.1);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  color: var(--ink);
+}
+.ct-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  color: rgba(244, 241, 234, 0.72);
+  font-variant-numeric: tabular-nums;
+}
+.ct-title {
+  margin-top: 0.55em;
+  padding-right: 40px;
+  font-family: 'Cormorant Upright', 'Chiron GoRound TC', serif;
+  font-weight: 600;
+  font-size: clamp(28px, 2.4vw, 34px);
+  line-height: 1.05;
+}
+.ct-intro {
+  margin-top: 0.6em;
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: rgba(244, 241, 234, 0.86);
+}
+.ct-list {
+  list-style: none;
+  margin: 20px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.ct-row {
+  display: grid;
+  grid-template-columns: 84px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+a.ct-row:hover,
+a.ct-row:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 217, 179, 0.55);
+  outline: none;
+}
+.ct-key {
+  font-size: 11.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 234, 0.7);
+}
+.ct-val {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 14.5px;
+}
+.ct-arrow {
+  color: #ffdcb8;
+}
+/* 未提供的联系方式：虚线框 + 斜体，明显是占位（不可点击） */
+.ct-row.is-placeholder {
+  border-style: dashed;
+  background: none;
+}
+.ct-row.is-placeholder .ct-val {
+  font-style: italic;
+  color: rgba(244, 241, 234, 0.55);
+}
+@media (max-width: 640px) {
+  .contact-panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    width: auto;
+    max-height: 70svh;
+    padding: 26px 20px calc(20px + env(safe-area-inset-bottom));
+    border-radius: 20px 20px 0 0;
+    border-bottom: 0;
+  }
+  .ct-row {
+    grid-template-columns: 76px 1fr auto;
   }
 }

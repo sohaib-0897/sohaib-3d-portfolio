@@ -67,9 +67,12 @@ export const MARVEL_STORY = {
   path: ['Science-fiction curiosity', 'Engineering curiosity', 'Software & AI projects'],
 }
 
-// Minimal copy shown in the scroll sequence (ui/StoryScroll.tsx) while the camera visits the watch / shoes.
-// The full stories stay in the panels above.
-export const SCROLL_COPY: Record<StoryId, { label: string; title: string; line: string }> = {
+// Beats in the scroll sequence: the two story panels plus the career / lanyard beat (which opens the contact panel).
+export type BeatId = StoryId | 'career'
+
+// Minimal copy shown in the scroll sequence (ui/StoryScroll.tsx) while the camera visits the watch / shoes / badge.
+// The full stories stay in the panels above; `cta` replaces the default "Explore" button label.
+export const SCROLL_COPY: Record<BeatId, { label: string; title: string; line: string; cta?: string }> = {
   watch: {
     label: 'TIME / 01',
     title: 'Watches Through My Career',
@@ -80,6 +83,30 @@ export const SCROLL_COPY: Record<StoryId, { label: string; title: string; line: 
     title: 'From Marvel to Engineering',
     line: 'Science-fiction curiosity became something I wanted to build for real.',
   },
+  career: {
+    label: 'CAREER / 03',
+    title: 'Open to the Right Opportunity',
+    line: 'Interested in Backend and Applied AI roles where I can build, learn, and take on meaningful engineering problems.',
+    cta: 'Let’s Connect',
+  },
+}
+
+// Contact panel (opened from "Let’s Connect" in the career beat). Only contact options that already exist on the
+// site are listed — never invent details. `href: null` = not provided yet: rendered as an obvious placeholder row.
+// To add one, fill in its href/value (e.g. 'mailto:…' / 'https://www.linkedin.com/in/…').
+export interface ContactLink {
+  label: string
+  value: string
+  href: string | null
+}
+export const CONTACT = {
+  title: 'Let’s Connect',
+  intro: 'Backend / Applied AI Engineer — open to opportunities.',
+  links: [
+    { label: 'GitHub', value: 'github.com/sohaib-0897', href: 'https://github.com/sohaib-0897' },
+    { label: 'Email', value: 'To be added', href: null },
+    { label: 'LinkedIn', value: 'To be added', href: null },
+  ] as ContactLink[],
 }
 
 // Accessible names for the two hotspots on the character.

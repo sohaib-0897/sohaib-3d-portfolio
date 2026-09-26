@@ -10,6 +10,7 @@ import LoadingScreen from './ui/LoadingScreen'
 import StoryHotspots from './ui/StoryHotspots'
 import StoryPanel from './ui/StoryPanel'
 import StoryScroll from './ui/StoryScroll'
+import ContactPanel from './ui/ContactPanel'
 import { useStore } from './store'
 
 function Backdrop() {
@@ -181,7 +182,14 @@ export default function App() {
           <span>Backend / Applied AI</span>
         </div>
         <div className="hero-meta hm-tr">Portfolio — 2026</div>
-        <div className="hero-meta hm-bl">Agents · Vision · Retrieval</div>
+        {/* 窄屏拆成三行（隐藏分隔点），避开胸前工牌 */}
+        <div className="hero-meta hm-bl">
+          <span>Agents</span>
+          <span className="hm-sep"> · </span>
+          <span>Vision</span>
+          <span className="hm-sep"> · </span>
+          <span>Retrieval</span>
+        </div>
       </motion.div>
 
       {/* 全屏胶片噪点蒙层（multiply 混合） */}
@@ -191,7 +199,7 @@ export default function App() {
       <main className="content">
         <Hero lang={lang} cueOpacity={cueOpacity} />
         <Resume lang={lang} />
-        {/* 角色故事滚动段：全身揭示 → 手表 → 鞋子 → 回到全身（相机叠加见 Scene.tsx） */}
+        {/* 角色故事滚动段：全身揭示 → 手表 → 鞋子 → 工牌 → 回到全身（相机叠加见 Scene.tsx） */}
         <StoryScroll />
         <Works lang={lang} innerRef={worksRef} />
       </main>
@@ -199,6 +207,8 @@ export default function App() {
       {/* 角色故事：手表 / 鞋子热点（位置由 Scene 每帧投影写入）+ 故事面板 */}
       <StoryHotspots />
       <StoryPanel />
+      {/* 工牌段「Let’s Connect」打开的联系面板 */}
+      <ContactPanel />
     </>
   )
 }

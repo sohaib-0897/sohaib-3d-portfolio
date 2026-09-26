@@ -17,6 +17,8 @@ interface StoreState {
   entered: boolean // 是否已通过入场
   story: StoryId | null // 打开的故事面板（watch / shoes），Scene 每帧读它做镜头微推
   seen: Record<string, boolean> // 打开过的故事（热点停止脉冲），存 localStorage
+  contact: boolean // 联系面板（工牌段的 Let’s Connect 打开）；不触发镜头微推
+  setContact: (open: boolean) => void
   setActive: (id: string | null) => void
   setHovered: (id: string | null) => void
   enter: () => void
@@ -30,6 +32,8 @@ export const useStore = create<StoreState>((set, get) => ({
   entered: false,
   story: null,
   seen: readSeen(),
+  contact: false,
+  setContact: (open) => set({ contact: open }),
   setActive: (id) => set({ active: id }),
   setHovered: (id) => set({ hovered: id }),
   enter: () => set({ entered: true }),

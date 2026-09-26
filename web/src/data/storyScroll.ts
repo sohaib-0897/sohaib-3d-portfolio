@@ -9,7 +9,9 @@
 //   holdWatch ：手表停留（TIME / 01 文案）
 //   toShoes   ：手表 → 鞋子
 //   holdShoes ：鞋子停留（ORIGIN / 02 文案）
-//   back      ：鞋子 → 全身（叠加权重回到 0 = 原作品区全身镜头，分毫不差）
+//   toBadge   ：鞋子 → 胸前工牌（镜头上移）
+//   holdBadge ：工牌停留（CAREER / 03 文案）
+//   back      ：工牌 → 全身（叠加权重回到 0 = 原作品区全身镜头，分毫不差）
 //   holdEnd   ：全身停留，然后作品画廊进场
 export interface StoryBeats {
   reveal: number
@@ -18,23 +20,27 @@ export interface StoryBeats {
   holdWatch: number
   toShoes: number
   holdShoes: number
+  toBadge: number
+  holdBadge: number
   back: number
   holdEnd: number
 }
 
+// 加入工牌段后揭示 / 全身停留各缩短一点，整段不至于拖沓
 export const STORY_BEATS: { desktop: StoryBeats; mobile: StoryBeats } = {
-  desktop: { reveal: 50, holdFull: 15, toWatch: 50, holdWatch: 55, toShoes: 50, holdShoes: 55, back: 45, holdEnd: 15 },
-  mobile: { reveal: 40, holdFull: 10, toWatch: 40, holdWatch: 45, toShoes: 40, holdShoes: 45, back: 40, holdEnd: 10 },
+  desktop: { reveal: 45, holdFull: 10, toWatch: 50, holdWatch: 55, toShoes: 50, holdShoes: 55, toBadge: 45, holdBadge: 45, back: 45, holdEnd: 15 },
+  mobile: { reveal: 35, holdFull: 10, toWatch: 40, holdWatch: 45, toShoes: 40, holdShoes: 45, toBadge: 35, holdBadge: 40, back: 40, holdEnd: 10 },
 }
 
 // 与移动端样式断点一致
 export const isNarrow = () => typeof window !== 'undefined' && window.innerWidth <= 640
 
-// 段总长（vh）+ 各节点累计进度：k[0]=0 … k[8]=1
-//   k1 揭示结束 · k2 离开全身 · k3 到达手表 · k4 离开手表 · k5 到达鞋子 · k6 离开鞋子 · k7 回到全身
+// 段总长（vh）+ 各节点累计进度：k[0]=0 … k[10]=1
+//   k1 揭示结束 · k2 离开全身 · k3 到达手表 · k4 离开手表 · k5 到达鞋子 · k6 离开鞋子
+//   k7 到达工牌 · k8 离开工牌 · k9 回到全身
 export function storyKeys(narrow: boolean): { total: number; k: number[] } {
   const b = narrow ? STORY_BEATS.mobile : STORY_BEATS.desktop
-  const seq = [b.reveal, b.holdFull, b.toWatch, b.holdWatch, b.toShoes, b.holdShoes, b.back, b.holdEnd]
+  const seq = [b.reveal, b.holdFull, b.toWatch, b.holdWatch, b.toShoes, b.holdShoes, b.toBadge, b.holdBadge, b.back, b.holdEnd]
   const total = seq.reduce((a, v) => a + v, 0)
   const k = [0]
   seq.forEach((v) => k.push(k[k.length - 1] + v / total))
@@ -42,14 +48,16 @@ export function storyKeys(narrow: boolean): { total: number; k: number[] } {
   return { total, k }
 }
 
-// 进度 p → 相机「故事坐标」c：0 = 全身，1 = 手表，2 = 鞋子，3 = 全身（与 0 同一镜头）。
+// 进度 p → 相机「故事坐标」c：0 = 全身，1 = 手表，2 = 鞋子，3 = 工牌，4 = 全身（与 0 同一镜头）。
 // 过渡段内线性，Scene 里再做缓动 + 阻尼。
+export const STORY_END = 4
 export function storyCoord(p: number, k: number[]): number {
   if (p <= k[2]) return 0
-  if (p < k[3]) return (p - k[2]) / (k[3] - k[2])
-  if (p <= k[4]) return 1
-  if (p < k[5]) return 1 + (p - k[4]) / (k[5] - k[4])
-  if (p <= k[6]) return 2
-  if (p < k[7]) return 2 + (p - k[6]) / (k[7] - k[6])
-  return 3
+  for (let n = 0; n < STORY_END; n++) {
+    const a = k[2 + 2 * n] // 离开第 n 个镜头
+    const b = k[3 + 2 * n] // 到达第 n+1 个镜头
+    if (p < b) return n + (p - a) / (b - a)
+    if (p <= k[4 + 2 * n]) return n + 1
+  }
+  return STORY_END
 }

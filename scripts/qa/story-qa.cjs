@@ -19,7 +19,11 @@ const path = require('path')
 const fs = require('fs')
 const OUT = path.join(__dirname, 'screenshots', 'story')
 fs.mkdirSync(OUT, { recursive: true })
-const URL = process.env.BASE_URL || 'http://localhost:4173/'
+// ?qa enables the read-only badge probe (window.__qa: story coordinate + career_badge screen rect)
+const URL = (process.env.BASE_URL || 'http://localhost:4173/') + '?qa'
+const qa = (page) => page.evaluate(() => window.__qa && { c: window.__qa.c, badge: { ...window.__qa.badge } })
+const rect = (page, sel) => page.evaluate((sel) => { const el = document.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom } }, sel)
+const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
 const CANDIDATE = process.env.CANDIDATE_GLB || path.join(__dirname, '..', '..', 'blender', 'previews', 'candidates', 'me_lanyard.glb')
 const PROD_GLB = path.join(__dirname, '..', '..', 'web', 'public', 'models', 'me.glb')
 const GLB = fs.existsSync(CANDIDATE) ? fs.readFileSync(CANDIDATE) : fs.readFileSync(PROD_GLB)
@@ -181,9 +185,10 @@ async function crop(page, name, c, size = 260) {
     await ctx.close()
   }
 
-  // ================= STORY SCROLL SEQUENCE (résumé → full body → watch → shoes → works) =================
+  // ================= STORY SCROLL SEQUENCE (résumé → full body → watch → shoes → lanyard → works) =================
   {
-    const SEQ = { d: [50, 15, 50, 55, 50, 55, 45, 15], m: [40, 10, 40, 45, 40, 45, 40, 10] }
+    // mirror of STORY_BEATS in web/src/data/storyScroll.ts
+    const SEQ = { d: [45, 10, 50, 55, 50, 55, 45, 45, 45, 15], m: [35, 10, 40, 45, 40, 45, 35, 40, 40, 10] }
     const keys = (seq) => { const t = seq.reduce((a, b) => a + b, 0); const k = [0]; seq.forEach((v) => k.push(k[k.length - 1] + v / t)); return k }
     const geo = (page) => page.evaluate(() => { const s = document.querySelector('.story-scroll'); return { top: s.getBoundingClientRect().top + scrollY, h: s.offsetHeight, ih: innerHeight } })
     const toP = (page, g, p, w) => scrollTo(page, g.top - g.ih + p * g.h, w)
@@ -192,12 +197,12 @@ async function crop(page, name, c, size = 260) {
     await page.mouse.move(720, 450); await sleep(600)
     // résumé stops identical to the pre-change baseline (same pointer, same scroll positions)
     const tops = await page.evaluate(() => ['focus-1', 'focus-2', 'focus-3', 'focus-4', 'focus-5'].map((n) => { const el = document.querySelector(`[data-point="${n}"]`); return el.getBoundingClientRect().top + window.scrollY }))
-    const BASE = path.join(__dirname, '..', 'previews', 'story_sequence', 'baseline_before')
+    const BASE = path.join(__dirname, '..', '..', 'blender', 'previews', 'story_sequence', 'baseline_before')
     for (let i = 0; i < 5; i++) {
       await scrollTo(page, tops[i] - 900 * 0.3, 2800)
       const cur = (await page.screenshot()).toString('base64')
       const basePath = path.join(BASE, `d1${i + 1}_resume_focus-${i + 1}.png`)
-      if (!fs.existsSync(basePath)) continue
+      if (!fs.existsSync(basePath)) { check(`résumé stop ${i + 1} baseline present`, false, basePath); continue }
       const base = fs.readFileSync(basePath).toString('base64')
       const diff = await page.evaluate(async ([a, b]) => {
         const load = (s) => new Promise((r) => { const im = new Image(); im.onload = () => r(im); im.src = 'data:image/png;base64,' + s })
@@ -267,8 +272,75 @@ async function crop(page, name, c, size = 260) {
     const s1 = await hs(page, 'shoes')
     check('seq: camera back to shoes shot after close', s1.visible === '1' && Math.abs(s1.cx - h.shoes.cx) < 0.5 && Math.abs(s1.cy - h.shoes.cy) < 0.5, [h.shoes.cx, h.shoes.cy, s1.cx, s1.cy])
     await page.mouse.move(720, 450); await sleep(600)
-    await at((k[6] + k[7]) / 2, 'q10_return_mid', 1400)
-    h = await at((k[7] + 1) / 2, 'q11_return_fullbody')
+    // ---- lanyard / career beat ----
+    // smooth rise: jump from the shoes hold to the badge hold, sample the damped story coordinate every frame
+    const cTrace = await page.evaluate(async (y) => {
+      window.scrollTo({ top: y, behavior: 'instant' })
+      const out = []
+      await new Promise((res) => { const t0 = performance.now(); const f = () => { if (window.__qa) out.push(window.__qa.c); if (performance.now() - t0 < 2500) requestAnimationFrame(f); else res() }; requestAnimationFrame(f) })
+      return out
+    }, g.top - g.ih + ((k[7] + k[8]) / 2) * g.h)
+    const mids = cTrace.filter((c) => c > 2.02 && c < 2.98).length
+    let maxStep = 0; for (let n = 1; n < cTrace.length; n++) maxStep = Math.max(maxStep, cTrace[n] - cTrace[n - 1])
+    check('lanyard: shoes → badge travels smoothly (no snap cut)', mids >= 5 && maxStep < 0.3 && cTrace.every((c, n) => n === 0 || c >= cTrace[n - 1] - 1e-6), { frames: cTrace.length, mids, maxStep: +maxStep.toFixed(3) })
+    await at(k[6] + (k[7] - k[6]) * 0.5, 'q14_shoes_to_lanyard', 1500)
+    h = await at((k[7] + k[8]) / 2, 'q15_lanyard')
+    const lq = await qa(page)
+    const lCard = await rect(page, '.ss-beat.is-career')
+    res.hotspots.seqLanyard = { badge: lq && lq.badge, card: lCard }
+    check('lanyard: camera settled on the badge pose', lq && Math.abs(lq.c - 3) < 1e-3, lq && lq.c)
+    check('lanyard: badge fully on screen', lq && lq.badge.left > 0 && lq.badge.right < 1440 && lq.badge.top > 0 && lq.badge.bottom < 900, lq && lq.badge)
+    const bh = lq ? lq.badge.bottom - lq.badge.top : 0
+    check('lanyard: badge readable but not a product close-up (90–300 px tall of 900)', bh >= 90 && bh <= 300, +bh.toFixed(1))
+    check('lanyard: copy does not cover the badge', lq && lCard && !overlaps(lq.badge, lCard), { badge: lq && lq.badge, card: lCard })
+    check('lanyard: both hotspots hidden in the badge beat', h.watch.visible === '0' && h.shoes.visible === '0', [h.watch.visible, h.shoes.visible])
+    const lCopy = await page.evaluate(() => ({
+      beats: [...document.querySelectorAll('.ss-beat')].map((b) => [b.className.replace('ss-beat ', ''), b.getAttribute('aria-hidden')]),
+      label: document.querySelector('.ss-beat.is-career .ss-label')?.textContent,
+      title: document.querySelector('.ss-beat.is-career .ss-title')?.textContent,
+      line: document.querySelector('.ss-beat.is-career .ss-line')?.textContent,
+      cta: document.querySelector('.ss-beat.is-career .ss-explore')?.textContent.trim(),
+    }))
+    check('lanyard: only the career copy is shown', lCopy.beats.every(([c, a]) => (c === 'is-career') === (a === 'false')), lCopy.beats)
+    check('lanyard: copy text', lCopy.label === 'CAREER / 03' && lCopy.title === 'Open to the Right Opportunity' && lCopy.line === 'Interested in Backend and Applied AI roles where I can build, learn, and take on meaningful engineering problems.' && /^Let’s Connect\s*→$/.test(lCopy.cta), lCopy)
+    check('lanyard: "Looking for Work" is not used as a heading', await page.evaluate(() => ![...document.querySelectorAll('h1,h2,h3')].some((e) => /looking for work/i.test(e.textContent))))
+    check('lanyard: scroll does not open the contact panel', await page.evaluate(() => !document.querySelector('.contact-panel')))
+    res.perf.lanyardBeat = await fps(page)
+    await crop(page, 'q15b_lanyard_badge', { cx: (lq.badge.left + lq.badge.right) / 2, cy: (lq.badge.top + lq.badge.bottom) / 2 }, 360)
+    // Let’s Connect → contact panel
+    await page.hover('.ss-beat.is-career .ss-explore'); await sleep(900); await shot('q16_lanyard_cta_hover')
+    await page.click('.ss-beat.is-career .ss-explore'); await sleep(1500)
+    const ct = await page.evaluate(() => {
+      const d = document.querySelector('[role="dialog"].contact-panel'); if (!d) return null
+      return {
+        modal: d.getAttribute('aria-modal'), title: d.querySelector('#contact-title')?.textContent, focus: document.activeElement?.className,
+        overflow: document.body.style.overflow, storyPanel: !!document.querySelector('.story-panel'),
+        links: [...d.querySelectorAll('a')].map((a) => ({ href: a.getAttribute('href'), target: a.target, rel: a.rel })),
+        placeholders: [...d.querySelectorAll('.ct-row.is-placeholder .ct-key')].map((e) => e.textContent),
+        invented: [...d.querySelectorAll('a')].some((a) => /^mailto:|^tel:|linkedin\.com/i.test(a.getAttribute('href') || '')),
+      }
+    })
+    await shot('q17_contact_panel')
+    check('contact: Let’s Connect opens a small contact dialog (not a story panel)', ct && ct.modal === 'true' && ct.title === 'Let’s Connect' && !ct.storyPanel, ct)
+    check('contact: only existing contact links (GitHub profile), opens in new tab', ct && ct.links.length === 1 && ct.links[0].href === 'https://github.com/sohaib-0897' && ct.links[0].target === '_blank' && /noopener/.test(ct.links[0].rel) && !ct.invented, ct && ct.links)
+    check('contact: missing details shown as placeholders (Email, LinkedIn)', ct && ct.placeholders.join() === 'Email,LinkedIn', ct && ct.placeholders)
+    check('contact: focus moved into dialog + scroll locked', ct && /story-close/.test(ct.focus) && ct.overflow === 'hidden', ct && [ct.focus, ct.overflow])
+    for (let n = 0; n < 5; n++) await page.keyboard.press('Tab')
+    check('contact: Tab focus trapped in dialog', await page.evaluate(() => !!document.activeElement?.closest('.contact-panel')))
+    await page.keyboard.press('Escape'); await sleep(1500)
+    const ctClosed = await page.evaluate(() => ({ open: !!document.querySelector('.contact-panel'), focus: document.activeElement?.className || '', overflow: document.body.style.overflow }))
+    check('contact: Esc closes, scroll unlocked', !ctClosed.open && ctClosed.overflow === '', ctClosed)
+    check('contact: focus returned to Let’s Connect', /ss-explore/.test(ctClosed.focus) && await page.evaluate(() => !!document.activeElement?.closest('.ss-beat.is-career')), ctClosed.focus)
+    const lq2 = await qa(page)
+    check('contact: camera unchanged by the panel', lq2 && Math.abs(lq2.badge.left - lq.badge.left) < 0.5 && Math.abs(lq2.badge.top - lq.badge.top) < 0.5, [lq.badge.left, lq.badge.top, lq2 && lq2.badge.left, lq2 && lq2.badge.top])
+    await page.keyboard.press('Enter'); await sleep(1300)
+    check('contact: Enter on Let’s Connect opens it', await page.evaluate(() => !!document.querySelector('.contact-panel')))
+    await page.mouse.click(200, 450); await sleep(1500)
+    check('contact: backdrop click closes', await page.evaluate(() => !document.querySelector('.contact-panel')))
+    await page.mouse.move(720, 450); await sleep(600)
+    // lanyard → works: pull back to the approved full-body shot
+    await at((k[8] + k[9]) / 2, 'q10_return_mid', 1400)
+    h = await at((k[9] + 1) / 2, 'q11_return_fullbody')
     check('seq: return lands on the exact full-body shot', h.watch.visible === '1' && Math.abs(h.watch.cx - fullW.cx) < 0.5 && Math.abs(h.watch.cy - fullW.cy) < 0.5, [fullW.cx, fullW.cy, h.watch.cx, h.watch.cy])
     const gt = await galleryTop(page)
     await scrollTo(page, gt, 3000); await shot('q12_works_pinned')
@@ -293,6 +365,10 @@ async function crop(page, name, c, size = 260) {
       await page.screenshot({ path: path.join(OUT, 'q21_reduced_shoes.png') })
       const b = await hs(page, 'shoes')
       check('reduced motion: shoes composition shown', b.visible === '1', b.visible)
+      await page.evaluate((y) => window.scrollTo({ top: y, behavior: 'instant' }), g2.top - g2.ih + (k[7] + k[8]) / 2 * g2.h)
+      await sleep(250); const r1 = await qa(page); await sleep(1500); const r2 = await qa(page)
+      check('reduced motion: lanyard composition is immediate (no travel)', r1 && r1.c === 3 && Math.abs(r1.badge.top - r2.badge.top) < 1, [r1 && r1.c, r1 && r1.badge.top, r2 && r2.badge.top])
+      await page.screenshot({ path: path.join(OUT, 'q22_reduced_lanyard.png') })
       await ctx.close()
     }
 
@@ -316,6 +392,23 @@ async function crop(page, name, c, size = 260) {
       await page.touchscreen.tap(ms.cx, ms.cy); await sleep(2600)
       check(`${m.tag}: tap shoes hotspot opens Marvel panel`, await page.evaluate(() => !!document.querySelector('.story-panel.is-shoes')))
       await page.tap('.story-close'); await panelGone(page, 1000)
+      // lanyard beat: wider chest shot, badge above the bottom copy card
+      await toP(page, g3, (km[7] + km[8]) / 2, 3200)
+      await page.screenshot({ path: path.join(OUT, `q32_${m.tag}_lanyard.png`) })
+      const mq = await qa(page)
+      const mCard = await rect(page, '.ss-beat.is-career')
+      const vpm = page.viewportSize()
+      check(`${m.tag}: lanyard badge on screen, above the copy card`, mq && mq.badge.left > 0 && mq.badge.right < vpm.width && mq.badge.top > 0 && mCard && mq.badge.bottom < mCard.top, { badge: mq && mq.badge, cardTop: mCard && mCard.top })
+      const mbh = mq ? mq.badge.bottom - mq.badge.top : 0
+      check(`${m.tag}: lanyard is a chest shot, not an extreme close-up (badge ≤ 20% of height)`, mbh > 40 && mbh <= vpm.height * 0.2, +mbh.toFixed(1))
+      check(`${m.tag}: career copy card shown`, await page.evaluate(() => document.querySelector('.ss-beat.is-career').getAttribute('aria-hidden') === 'false'))
+      await page.tap('.ss-beat.is-career .ss-explore'); await sleep(1500)
+      check(`${m.tag}: tap Let’s Connect opens contact panel`, await page.evaluate(() => !!document.querySelector('.contact-panel')))
+      await page.screenshot({ path: path.join(OUT, `q33_${m.tag}_contact.png`) })
+      const cpOx = await page.evaluate(() => { const r = document.querySelector('.contact-panel').getBoundingClientRect(); return { left: r.left, right: r.right, vw: window.innerWidth } })
+      check(`${m.tag}: contact panel fits the viewport`, cpOx.left >= 0 && cpOx.right <= cpOx.vw + 0.5, cpOx)
+      await page.tap('.story-close'); await sleep(1500)
+      check(`${m.tag}: contact panel closes`, await page.evaluate(() => !document.querySelector('.contact-panel')))
       const ox = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
       check(`${m.tag}: no horizontal overflow in story beats`, ox <= 0, ox)
       await ctx.close()
@@ -349,6 +442,9 @@ async function crop(page, name, c, size = 260) {
     const { ctx, page } = await newPage(browser, { viewport: m.viewport, deviceScaleFactor: m.deviceScaleFactor, isMobile: true, hasTouch: true }, m.tag)
     const shot = (n) => page.screenshot({ path: path.join(OUT, `${m.tag}_${n}.png`) })
     await shot('01_hero')
+    const heroLabel = await rect(page, '.hm-bl')
+    const heroQa = await qa(page)
+    check(`${m.tag}: hero AGENTS · VISION · RETRIEVAL label clear of the badge`, heroLabel && heroQa && !overlaps(heroLabel, heroQa.badge), { label: heroLabel, badge: heroQa && heroQa.badge })
     const stageTop = await page.evaluate(() => { const el = document.querySelector('.wk-stage'); return el.getBoundingClientRect().top + window.scrollY })
     const g = await galleryTop(page)
     // scroll so the stage fills the screen (below the Works title)

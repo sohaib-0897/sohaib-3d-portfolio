@@ -8,7 +8,7 @@ import { FOCUS_POINTS, FRAMES_PER_NODE } from '../data/focusPoints'
 import type { StoryId } from '../data/stories'
 import { useStore } from '../store'
 import { hotspotEls } from './storyAnchors'
-import { storyKeys, storyCoord } from '../data/storyScroll'
+import { storyKeys, storyCoord, STORY_END } from '../data/storyScroll'
 
 useGLTF.preload(`${import.meta.env.BASE_URL}models/me.glb`)
 
@@ -31,11 +31,12 @@ const STORY_CAM = {
   maxHit: { watch: 64, shoes: 140 } as Record<StoryId, number>, // 特写时热点最大半尺寸（px），不让命中区铺满半屏
 }
 // 角色故事滚动段（履历之后、作品之前，节奏见 data/storyScroll.ts）：在作品区全身镜头（第 300 帧）之上
-// 叠加两处镜头——手表 / 鞋子。每个镜头 = 从原相机方向靠近目标 + 轻微俯仰/方位 + 让目标落在文案之外。
+// 叠加三处镜头——手表 / 鞋子 / 胸前工牌。每个镜头 = 从原相机方向靠近目标 + 轻微俯仰/方位 + 让目标落在文案之外。
 //   frac：目标半径占「视口较短半边」的比例（越大越近）；x / y：目标在屏幕上的 NDC 位置；
 //   elev / azim：相对原相机方向的抬高 / 绕竖轴旋转（度）。窄屏镜头更宽、目标放上方（文案在底部）。
 const STORY_SEQ = {
   arc: 0.14, // 手表 → 鞋子途中略微拉远（占距离比例），像镜头下摇而不是直线平移
+  arcBadge: 0.18, // 鞋子 → 工牌（上移整段身体）途中略微拉远，不是贴着身体直线上滑
   watch: {
     desktop: { frac: 0.17, x: -0.3, y: 0.02, elev: 4, azim: 0 },
     mobile: { frac: 0.2, x: 0, y: 0.24, elev: 4, azim: 0 },
@@ -44,8 +45,17 @@ const STORY_SEQ = {
     desktop: { frac: 0.52, x: -0.3, y: -0.1, elev: 14, azim: 0 }, // 比 0.46 近约 12%，鞋子略放低
     mobile: { frac: 0.62, x: 0, y: 0.24, elev: 14, azim: 0 },
   },
+  // 工牌：保留上半身语境（领口 / 颈部 / 挂绳 / 工牌 / 上衣），不是产品特写；画面上沿切在下巴下方（不切过脸），
+  // 窄屏工牌放在上半屏、离底部文案卡片足够远
+  badge: {
+    desktop: { frac: 0.15, x: -0.4, y: 0.18, elev: 2, azim: 0 },
+    mobile: { frac: 0.22, x: 0, y: 0.46, elev: 2, azim: 0 },
+  },
 }
+type StoryPoseId = StoryId | 'badge'
 const KEYS = { desktop: storyKeys(false), mobile: storyKeys(true) }
+// QA 探针开关：只有 URL 带 ?qa 才写 window.__qa（正常访问不做任何额外计算）
+const QA_PROBE = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('qa')
 const UP = new THREE.Vector3(0, 1, 0)
 
 // 上下渐变背景球（包裹相机），两端颜色可调
@@ -193,6 +203,11 @@ function Man2({
     let watchAnchor: any = null
     let watchMesh: any = null
     let shoesAnchor: any = null
+    // 胸前工牌网格（career_badge，只在候选 glb 里）：镜头对准其几何包围盒中心，半径 = 包围盒半对角线
+    let badge: any = null
+    const badgeC = new THREE.Vector3()
+    const badgeBox = new THREE.Box3()
+    let badgeR = 0
     clone.traverse((o: any) => {
       if (o.isMesh) {
         o.castShadow = true
@@ -201,6 +216,24 @@ function Man2({
       if (o.name === 'watch_interaction') watchAnchor = o
       if (o.name === 'watch_left') watchMesh = o
       if (o.name === 'shoes_interaction') shoesAnchor = o
+      // 多材质网格在 three 里是一个 Group + 若干子 Mesh（每个 primitive 一个）→ 合并自身与直接子网格的包围盒（工牌本地空间）
+      if (o.name === 'career_badge') {
+        for (const m of [o, ...o.children]) {
+          if (!m.isMesh || !m.geometry) continue
+          m.geometry.computeBoundingBox()
+          const b = m.geometry.boundingBox.clone()
+          if (m !== o) {
+            m.updateMatrix()
+            b.applyMatrix4(m.matrix)
+          }
+          badgeBox.union(b)
+        }
+        if (!badgeBox.isEmpty()) {
+          badge = o
+          badgeBox.getCenter(badgeC)
+          badgeR = badgeBox.getSize(new THREE.Vector3()).length() / 2
+        }
+      }
       if (o.isCamera) glbCam = o
       // 首页锚点：兼容旧名 focus-start 与 intro3d 统一命名 focus-0
       if (o.name === 'focus-start' || o.name === 'focus-0') startPoint = o
@@ -263,7 +296,19 @@ function Man2({
         shoes: shoesAnchor,
         // 锚点的世界缩放 = 命中半径；回退到网格时用固定的模型空间半径
         watchUnit: !!watchAnchor,
-      } as { watch: any; shoes: any; watchUnit: boolean },
+        badge,
+        badgeC,
+        badgeR,
+        badgeBox,
+      } as {
+        watch: any
+        shoes: any
+        watchUnit: boolean
+        badge: any
+        badgeC: THREE.Vector3
+        badgeR: number
+        badgeBox: THREE.Box3
+      },
     }
   }, [scene])
 
@@ -547,7 +592,7 @@ function Man2({
       }
     }
 
-    // 5a) 角色故事滚动段的叠加镜头。故事坐标 c：0 全身 → 1 手表 → 2 鞋子 → 3 全身（0 与 3 = 原相机，不叠加）。
+    // 5a) 角色故事滚动段的叠加镜头。故事坐标 c：0 全身 → 1 手表 → 2 鞋子 → 3 工牌 → 4 全身（0 与 4 = 原相机，不叠加）。
     //     c 随滚动阻尼趋近目标，关键镜头之间 smootherstep 缓动；减少动态效果时直接切到最近的稳定构图。
     //     与第 5 步一样只叠加在算好的相机之上：不改 CameraAction / 履历帧 / 作品区镜头。
     const cTarget = hasStory && storyP > 0 ? storyCoord(Math.min(storyP, 1), sk.k) : 0
@@ -561,18 +606,19 @@ function Man2({
     }
     const sc = storyC.current
     const v = sv.current
-    // 热点分区：手表镜头附近只露手表热点，鞋子镜头附近只露鞋子热点
-    const storyZone: StoryId | null = sc > 0.5 && sc < 1.5 ? 'watch' : sc >= 1.5 && sc < 2.5 ? 'shoes' : null
-    if (sc > 0 && sc < 3 && glbCam && camera.isPerspectiveCamera) {
+    // 热点分区：手表镜头附近只露手表热点，鞋子镜头附近只露鞋子热点，工牌镜头附近两个都不露
+    const storyZone: StoryPoseId | null =
+      sc > 0.5 && sc < 1.5 ? 'watch' : sc >= 1.5 && sc < 2.5 ? 'shoes' : sc >= 2.5 && sc < 3.5 ? 'badge' : null
+    if (sc > 0 && sc < STORY_END && glbCam && camera.isPerspectiveCamera) {
       const q = sq.current
       q.base.pos.copy(camera.position)
       q.base.quat.copy(camera.quaternion)
       q.base.tgt.copy(focusRef.current)
       const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)
       const tanH = tanV * camera.aspect
-      // key: 0 / 3 = 基准镜头；1 = 手表；2 = 鞋子（无锚点的旧 glb → 基准）
+      // key: 0 / 4 = 基准镜头；1 = 手表；2 = 鞋子；3 = 工牌（无锚点的旧 glb → 基准）
       const pose = (key: number, out: typeof q.a) => {
-        const id: StoryId | null = key === 1 ? 'watch' : key === 2 ? 'shoes' : null
+        const id: StoryPoseId | null = key === 1 ? 'watch' : key === 2 ? 'shoes' : key === 3 ? 'badge' : null
         const obj = id ? story[id] : null
         if (!id || !obj) {
           out.pos.copy(q.base.pos)
@@ -582,9 +628,15 @@ function Man2({
         }
         const cfg = STORY_SEQ[id][narrowView ? 'mobile' : 'desktop']
         obj.updateWorldMatrix(true, false)
-        obj.getWorldPosition(out.tgt)
         obj.getWorldScale(v.scl)
-        const r = id === 'watch' ? (story.watchUnit ? v.scl.x : 0.17 * v.scl.x) : v.scl.length()
+        let r: number
+        if (id === 'badge') {
+          out.tgt.copy(story.badgeC).applyMatrix4(obj.matrixWorld)
+          r = story.badgeR * v.scl.x
+        } else {
+          obj.getWorldPosition(out.tgt)
+          r = id === 'watch' ? (story.watchUnit ? v.scl.x : 0.17 * v.scl.x) : v.scl.length()
+        }
         q.dir.copy(q.base.pos).sub(out.tgt)
         const baseDist = q.dir.length()
         q.dir.normalize()
@@ -600,17 +652,18 @@ function Man2({
         v.euler.set(-Math.atan(cfg.y * tanV), Math.atan(cfg.x * tanH), 0, 'YXZ')
         out.quat.multiply(v.off.setFromEuler(v.euler))
       }
-      const i = Math.min(2, Math.floor(sc))
+      const i = Math.min(STORY_END - 1, Math.floor(sc))
       const t = THREE.MathUtils.smootherstep(sc - i, 0, 1)
       pose(i, q.a)
       pose(i + 1, q.b)
       camera.position.lerpVectors(q.a.pos, q.b.pos, t)
       camera.quaternion.slerpQuaternions(q.a.quat, q.b.quat, t)
       focusRef.current.lerpVectors(q.a.tgt, q.b.tgt, t)
-      if (i === 1 && STORY_SEQ.arc > 0) {
-        // 手表 → 鞋子：途中沿「焦点→相机」略微拉远，两端为 0
+      // 手表 → 鞋子 / 鞋子 → 工牌：途中沿「焦点→相机」略微拉远，两端为 0
+      const arc = i === 1 ? STORY_SEQ.arc : i === 2 ? STORY_SEQ.arcBadge : 0
+      if (arc > 0) {
         q.dir.copy(camera.position).sub(focusRef.current)
-        camera.position.addScaledVector(q.dir, STORY_SEQ.arc * Math.sin(Math.PI * t))
+        camera.position.addScaledVector(q.dir, arc * Math.sin(Math.PI * t))
       }
     }
 
@@ -647,7 +700,11 @@ function Man2({
     // 6) DOM 热点：把锚点投影到屏幕，直接写到按钮的 style 上（事件驱动点击，无射线检测）。
     //    只在作品区全身镜头（转身结束后）出现；与作品卡片重叠、面板打开或镜头微推中时隐藏。
     const showPhase =
-      inWorks && frame >= RESUME_FRAMES + WORKS_ENTRANCE - 4 && !storyNow && storyW.current === 0
+      inWorks &&
+      frame >= RESUME_FRAMES + WORKS_ENTRANCE - 4 &&
+      !storyNow &&
+      !useStore.getState().contact &&
+      storyW.current === 0
     if (showPhase && !cardEls.current) cardEls.current = Array.from(document.querySelectorAll('.wk-card'))
     if (showPhase) camera.updateMatrixWorld()
     // 用画布自身的 CSS 尺寸 / 偏移（不是 window.innerWidth——那会把滚动条宽度算进去导致热点偏移；与 DPR 无关）
@@ -723,6 +780,34 @@ function Man2({
       // 在自己的故事镜头里略微强调
       const emph = storyZone === id ? '1' : '0'
       if (el.dataset.emph !== emph) el.dataset.emph = emph
+    }
+
+    // 6b) QA 探针（仅 URL 带 ?qa 时）：工牌包围盒的屏幕矩形 + 故事坐标，供 scripts/qa 检查文案卡片不遮挡工牌
+    if (QA_PROBE && story.badge) {
+      camera.updateMatrixWorld()
+      const bb = story.badgeBox
+      story.badge.updateWorldMatrix(true, false)
+      let x0 = Infinity
+      let y0 = Infinity
+      let x1 = -Infinity
+      let y1 = -Infinity
+      for (let k = 0; k < 8; k++) {
+        v.p.set(k & 1 ? bb.max.x : bb.min.x, k & 2 ? bb.max.y : bb.min.y, k & 4 ? bb.max.z : bb.min.z)
+        v.p.applyMatrix4(story.badge.matrixWorld).project(camera)
+        x0 = Math.min(x0, v.p.x)
+        x1 = Math.max(x1, v.p.x)
+        y0 = Math.min(y0, v.p.y)
+        y1 = Math.max(y1, v.p.y)
+      }
+      ;(window as any).__qa = {
+        c: sc,
+        badge: {
+          left: ox + (x0 + 1) * 0.5 * vw,
+          right: ox + (x1 + 1) * 0.5 * vw,
+          top: oy + (1 - y1) * 0.5 * vh,
+          bottom: oy + (1 - y0) * 0.5 * vh,
+        },
+      }
     }
 
     // 4) 眼睛跟随（用当前激活相机做屏幕投影）；移动端 / 触屏则跳过
