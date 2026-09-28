@@ -1431,7 +1431,20 @@ canvas {
   gap: 0.6em;
 }
 
-/* ---------- 加载遮罩：模型全部加载完成前覆盖全屏（进度环，无文字）---------- */
+/* ---------- 屏幕阅读器可访问性占位辅助 ---------- */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ---------- 加载遮罩：增强版（带进度指示与预载好奇心事实库） ---------- */
 .loading-screen {
   position: fixed;
   inset: 0;
@@ -1442,6 +1455,7 @@ canvas {
   background: #000000;
   opacity: 1;
   transition: opacity 0.6s ease;
+  user-select: none;
 }
 
 .loading-screen.is-hidden {
@@ -1449,9 +1463,27 @@ canvas {
   pointer-events: none;
 }
 
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+  max-width: 440px;
+  padding: 0 24px;
+  box-sizing: border-box;
+}
+
+.loading-status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
 .loading-ring {
-  width: clamp(56px, 8vw, 80px);
-  height: clamp(56px, 8vw, 80px);
+  width: clamp(52px, 7vw, 64px);
+  height: clamp(52px, 7vw, 64px);
   animation: lrSpin 2.4s linear infinite;
 }
 
@@ -1481,6 +1513,97 @@ canvas {
 @keyframes lrSpin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+.loading-progress-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.loading-label {
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 234, 0.45);
+  font-weight: 500;
+}
+
+.loading-pct {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.loading-divider {
+  width: 32px;
+  height: 1px;
+  background: rgba(244, 241, 234, 0.12);
+  margin: 22px 0 18px;
+}
+
+.loading-fact-box {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.loading-fact-header {
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #6f906f;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.loading-fact-stage {
+  width: 100%;
+  min-height: 82px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-fact-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.loading-fact-text {
+  font-size: clamp(13.5px, 1.6vw, 15px);
+  line-height: 1.55;
+  color: rgba(244, 241, 234, 0.9);
+  max-width: 400px;
+  margin: 0;
+  text-wrap: balance;
+  word-break: break-word;
+}
+
+.loading-fact-category {
+  display: inline-block;
+  font-size: 9.5px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 234, 0.4);
+  padding: 2.5px 9px;
+  border-radius: 999px;
+  background: rgba(244, 241, 234, 0.04);
+  border: 1px solid rgba(244, 241, 234, 0.08);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-ring {
+    animation: none;
   }
 }
 
@@ -2353,4 +2476,45 @@ a.ct-row:focus-visible {
   .ct-row {
     grid-template-columns: 76px 1fr auto;
   }
+
+  /* 加载遮罩移动端优化 */
+  .loading-content {
+    max-width: 340px;
+    padding: 0 16px;
+  }
+  .loading-status {
+    gap: 12px;
+  }
+  .loading-ring {
+    width: 46px;
+    height: 46px;
+  }
+  .loading-label {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+  }
+  .loading-pct {
+    font-size: 20px;
+  }
+  .loading-divider {
+    margin: 18px 0 16px;
+  }
+  .loading-fact-header {
+    font-size: 9.5px;
+    letter-spacing: 0.2em;
+    margin-bottom: 10px;
+  }
+  .loading-fact-stage {
+    min-height: 74px;
+  }
+  .loading-fact-text {
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .loading-fact-category {
+    font-size: 8.5px;
+    letter-spacing: 0.16em;
+    padding: 2px 7px;
+  }
 }
+
