@@ -101,11 +101,12 @@ export interface ContactLink {
 }
 export const CONTACT = {
   title: 'Let’s Connect',
-  intro: 'Backend / Applied AI Engineer — open to opportunities.',
+  intro: 'Software Engineer · Backend & Applied AI Systems — open to opportunities.',
   links: [
-    { label: 'GitHub', value: 'github.com/sohaib-0897', href: 'https://github.com/sohaib-0897' },
-    { label: 'Email', value: 'To be added', href: null },
-    { label: 'LinkedIn', value: 'To be added', href: null },
+    { label: 'GitHub', value: 'Code', href: 'https://github.com/sohaib-0897' },
+    { label: 'Email', value: 'msohaibimran1@gmail.com', href: 'mailto:msohaibimran1@gmail.com' },
+    { label: 'Phone', value: '03004599778', href: 'tel:+923004599778' },
+    { label: 'LinkedIn', value: 'Profile', href: 'https://www.linkedin.com/in/muhammad-sohaib-imran-0z9/' },
   ] as ContactLink[],
 }
 

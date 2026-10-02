@@ -1,5 +1,5 @@
 // Story-interaction QA against the production build (vite preview :4173).
-// The CANDIDATE glb is served via request interception — production me.glb on disk is never touched.
+// The production glb is tested by default; CANDIDATE_GLB explicitly opts into an alternate model.
 function getChromium() {
   if (process.env.PLAYWRIGHT) {
     try { return require(process.env.PLAYWRIGHT).chromium; } catch (e) {}
@@ -26,7 +26,7 @@ const rect = (page, sel) => page.evaluate((sel) => { const el = document.querySe
 const overlaps = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top
 const CANDIDATE = process.env.CANDIDATE_GLB || path.join(__dirname, '..', '..', 'blender', 'previews', 'candidates', 'me_lanyard.glb')
 const PROD_GLB = path.join(__dirname, '..', '..', 'web', 'public', 'models', 'me.glb')
-const GLB = fs.existsSync(CANDIDATE) ? fs.readFileSync(CANDIDATE) : fs.readFileSync(PROD_GLB)
+const GLB = fs.readFileSync(process.env.CANDIDATE_GLB ? CANDIDATE : PROD_GLB)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const res = { checks: [], perf: {}, logs: [], hotspots: {} }
 const check = (name, ok, detail) => { res.checks.push({ name, ok: !!ok, detail }); console.log((ok ? 'PASS ' : 'FAIL ') + name + (detail !== undefined ? '  ' + JSON.stringify(detail) : '')) }
@@ -154,18 +154,18 @@ async function crop(page, name, c, size = 260) {
     await page.keyboard.press('Enter'); await sleep(1200)
     const byEnter = await page.evaluate(() => !!document.querySelector('.story-panel.is-watch'))
     check('Enter opens watch panel', byEnter, byEnter)
-    await page.click('.story-close'); await sleep(3200)
-    await page.focus('.story-hotspot.is-shoes'); await page.keyboard.press(' '); await sleep(1200)
+    await page.click('.story-close'); await panelGone(page)
+    await page.focus('.story-hotspot.is-shoes'); await page.keyboard.press('Space'); await sleep(1200)
     const bySpace = await page.evaluate(() => !!document.querySelector('.story-panel.is-shoes'))
     check('Space opens shoes panel', bySpace, bySpace)
-    await page.mouse.click(200, 450); await sleep(3200) // backdrop click closes
+    await page.mouse.click(200, 450); await panelGone(page) // backdrop click closes
     const backdropClosed = await page.evaluate(() => !document.querySelector('.story-panel'))
     check('backdrop click closes', backdropClosed, backdropClosed)
     // shoes hover + click
     const s2 = await hs(page, 'shoes')
     await page.mouse.move(s2.cx, s2.cy, { steps: 6 }); await sleep(700)
     await shot('d30_shoes_hover'); await crop(page, 'd30b_shoes_hover_crop', s2, 340)
-    await page.mouse.click(s2.cx, s2.cy); await sleep(2800)
+    await page.locator('.story-hotspot.is-shoes').click(); await sleep(2800)
     const mv = await page.evaluate(() => ({ title: document.querySelector('.story-panel.is-shoes .story-title')?.textContent, paras: document.querySelectorAll('.mv-p').length, steps: [...document.querySelectorAll('.mv-step-text')].map((e) => e.textContent) }))
     check('Marvel panel opens on click', mv.title === 'From Marvel to Engineering' && mv.paras === 3, mv)
     await shot('d31_marvel_panel_open')
@@ -179,12 +179,21 @@ async function crop(page, name, c, size = 260) {
     const hid2 = await hs(page, 'watch')
     check('hotspots hidden once cards cover the character', hid2.visible === '0', hid2.visible)
     await page.locator('.wk-card').nth(1).locator('.wk-line-btn').click(); await sleep(1100)
-    const detail = await page.evaluate(() => document.querySelector('a.wk-detail-link')?.getAttribute('href'))
+    const detail = await page.evaluate(() => document.querySelector('a.wk-detail-link[href="https://github.com/sohaib-0897/OmniOps"]')?.getAttribute('href'))
     check('project detail still opens', detail === 'https://github.com/sohaib-0897/OmniOps', detail)
     await shot('d41_project_detail'); await page.keyboard.press('Escape'); await sleep(600)
     await ctx.close()
   }
 
+  // Run just desktop interactions when investigating keyboard / pointer timing.
+  if (process.env.QA_DESKTOP_ONLY) {
+    res.passed = res.checks.every((c) => c.ok)
+    fs.writeFileSync(path.join(OUT, 'desktop-result.json'), JSON.stringify(res, null, 2))
+    console.log(JSON.stringify({ passed: res.passed, failed: res.checks.filter((c) => !c.ok), perf: res.perf, logs: res.logs }, null, 1))
+    await browser.close()
+    if (!res.passed) process.exitCode = 1
+    return
+  }
   // ================= STORY SCROLL SEQUENCE (résumé → full body → watch → shoes → lanyard → works) =================
   {
     // mirror of STORY_BEATS in web/src/data/storyScroll.ts
@@ -197,11 +206,11 @@ async function crop(page, name, c, size = 260) {
     await page.mouse.move(720, 450); await sleep(600)
     // résumé stops identical to the pre-change baseline (same pointer, same scroll positions)
     const tops = await page.evaluate(() => ['focus-1', 'focus-2', 'focus-3', 'focus-4', 'focus-5'].map((n) => { const el = document.querySelector(`[data-point="${n}"]`); return el.getBoundingClientRect().top + window.scrollY }))
-    const BASE = path.join(__dirname, '..', '..', 'blender', 'previews', 'story_sequence', 'baseline_before')
+    const BASE = process.env.QA_BASELINE || path.join(OUT, '..', 'baseline')
     for (let i = 0; i < 5; i++) {
       await scrollTo(page, tops[i] - 900 * 0.3, 2800)
       const cur = (await page.screenshot()).toString('base64')
-      const basePath = path.join(BASE, `d1${i + 1}_resume_focus-${i + 1}.png`)
+      const basePath = path.join(BASE, `1${i + 1}_desktop_resume_focus-${i + 1}.png`)
       if (!fs.existsSync(basePath)) { check(`résumé stop ${i + 1} baseline present`, false, basePath); continue }
       const base = fs.readFileSync(basePath).toString('base64')
       const diff = await page.evaluate(async ([a, b]) => {
@@ -302,7 +311,7 @@ async function crop(page, name, c, size = 260) {
       cta: document.querySelector('.ss-beat.is-career .ss-explore')?.textContent.trim(),
     }))
     check('lanyard: only the career copy is shown', lCopy.beats.every(([c, a]) => (c === 'is-career') === (a === 'false')), lCopy.beats)
-    check('lanyard: copy text', lCopy.label === 'CAREER / 03' && lCopy.title === 'Open to the Right Opportunity' && lCopy.line === 'Interested in Backend and Applied AI roles where I can build, learn, and take on meaningful engineering problems.' && /^Let’s Connect\s*→$/.test(lCopy.cta), lCopy)
+    check('lanyard: copy text', lCopy.label === 'CAREER / 03' && lCopy.title === 'Open to the Right Opportunity' && lCopy.line === 'Interested in Backend and Applied AI roles where I can build, learn, and take on meaningful engineering problems.' && /^Let’s Connect\s*→\s*Contact details$/.test(lCopy.cta), lCopy)
     check('lanyard: "Looking for Work" is not used as a heading', await page.evaluate(() => ![...document.querySelectorAll('h1,h2,h3')].some((e) => /looking for work/i.test(e.textContent))))
     check('lanyard: scroll does not open the contact panel', await page.evaluate(() => !document.querySelector('.contact-panel')))
     res.perf.lanyardBeat = await fps(page)
@@ -315,19 +324,19 @@ async function crop(page, name, c, size = 260) {
       return {
         modal: d.getAttribute('aria-modal'), title: d.querySelector('#contact-title')?.textContent, focus: document.activeElement?.className,
         overflow: document.body.style.overflow, storyPanel: !!document.querySelector('.story-panel'),
-        links: [...d.querySelectorAll('a')].map((a) => ({ href: a.getAttribute('href'), target: a.target, rel: a.rel })),
+        links: [...d.querySelectorAll('.ct-list a')].map((a) => ({ href: a.getAttribute('href'), target: a.target, rel: a.rel })),
         placeholders: [...d.querySelectorAll('.ct-row.is-placeholder .ct-key')].map((e) => e.textContent),
-        invented: [...d.querySelectorAll('a')].some((a) => /^mailto:|^tel:|linkedin\.com/i.test(a.getAttribute('href') || '')),
+        invented: [...d.querySelectorAll('.ct-list a')].some((a) => !['https://github.com/sohaib-0897', 'https://www.linkedin.com/in/muhammad-sohaib-imran-0z9/', 'mailto:msohaibimran1@gmail.com', 'tel:+923004599778'].includes(a.getAttribute('href'))),
       }
     })
     await shot('q17_contact_panel')
     check('contact: Let’s Connect opens a small contact dialog (not a story panel)', ct && ct.modal === 'true' && ct.title === 'Let’s Connect' && !ct.storyPanel, ct)
-    check('contact: only existing contact links (GitHub profile), opens in new tab', ct && ct.links.length === 1 && ct.links[0].href === 'https://github.com/sohaib-0897' && ct.links[0].target === '_blank' && /noopener/.test(ct.links[0].rel) && !ct.invented, ct && ct.links)
-    check('contact: missing details shown as placeholders (Email, LinkedIn)', ct && ct.placeholders.join() === 'Email,LinkedIn', ct && ct.placeholders)
+    check('contact: supplied GitHub and LinkedIn profiles open safely', ct && ct.links.length === 4 && ct.links.some((link) => link.href === 'https://github.com/sohaib-0897') && ct.links.some((link) => link.href === 'https://www.linkedin.com/in/muhammad-sohaib-imran-0z9/') && ct.links.filter((link) => /^https:/.test(link.href)).every((link) => link.target === '_blank' && /noopener/.test(link.rel)) && !ct.invented, ct && ct.links)
+    check('contact: supplied email and phone are actionable', ct && ct.placeholders.length === 0 && ct.links.some((link) => link.href === 'mailto:msohaibimran1@gmail.com') && ct.links.some((link) => link.href === 'tel:+923004599778'), ct && ct.links)
     check('contact: focus moved into dialog + scroll locked', ct && /story-close/.test(ct.focus) && ct.overflow === 'hidden', ct && [ct.focus, ct.overflow])
     for (let n = 0; n < 5; n++) await page.keyboard.press('Tab')
     check('contact: Tab focus trapped in dialog', await page.evaluate(() => !!document.activeElement?.closest('.contact-panel')))
-    await page.keyboard.press('Escape'); await sleep(1500)
+    await page.keyboard.press('Escape'); await page.waitForSelector('.contact-panel', { state: 'detached' }); await sleep(500)
     const ctClosed = await page.evaluate(() => ({ open: !!document.querySelector('.contact-panel'), focus: document.activeElement?.className || '', overflow: document.body.style.overflow }))
     check('contact: Esc closes, scroll unlocked', !ctClosed.open && ctClosed.overflow === '', ctClosed)
     check('contact: focus returned to Let’s Connect', /ss-explore/.test(ctClosed.focus) && await page.evaluate(() => !!document.activeElement?.closest('.ss-beat.is-career')), ctClosed.focus)
@@ -335,7 +344,7 @@ async function crop(page, name, c, size = 260) {
     check('contact: camera unchanged by the panel', lq2 && Math.abs(lq2.badge.left - lq.badge.left) < 0.5 && Math.abs(lq2.badge.top - lq.badge.top) < 0.5, [lq.badge.left, lq.badge.top, lq2 && lq2.badge.left, lq2 && lq2.badge.top])
     await page.keyboard.press('Enter'); await sleep(1300)
     check('contact: Enter on Let’s Connect opens it', await page.evaluate(() => !!document.querySelector('.contact-panel')))
-    await page.mouse.click(200, 450); await sleep(1500)
+    await page.mouse.click(200, 450); await page.waitForSelector('.contact-panel', { state: 'detached' }); await sleep(500)
     check('contact: backdrop click closes', await page.evaluate(() => !document.querySelector('.contact-panel')))
     await page.mouse.move(720, 450); await sleep(600)
     // lanyard → works: pull back to the approved full-body shot
@@ -422,7 +431,11 @@ async function crop(page, name, c, size = 260) {
     { tag: 'v1440x900_dpr2', viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 },
   ]) {
     const { ctx, page } = await newPage(browser, { viewport: v.viewport, deviceScaleFactor: v.deviceScaleFactor }, v.tag)
-    const g = await galleryTop(page)
+    // Inspect the final full-body hold before project cards can occlude the hotspots.
+    const g = await page.evaluate(() => {
+      const el = document.querySelector('.story-scroll')
+      return el.getBoundingClientRect().top + scrollY + el.offsetHeight - innerHeight - innerHeight * 0.075
+    })
     await scrollTo(page, g, 3000)
     const w = await hs(page, 'watch'); const s = await hs(page, 'shoes')
     res.hotspots[v.tag] = { watch: w, shoes: s }
@@ -493,4 +506,5 @@ async function crop(page, name, c, size = 260) {
   fs.writeFileSync(path.join(OUT, 'result.json'), JSON.stringify(res, null, 2))
   console.log(JSON.stringify({ passed: res.passed, failed: res.checks.filter((c) => !c.ok), perf: res.perf, logs: res.logs.slice(0, 20) }, null, 1))
   await browser.close()
+  if (!res.passed) process.exitCode = 1
 })().catch((e) => { console.error(e); process.exit(1) })

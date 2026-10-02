@@ -18,7 +18,7 @@ const path = require('path')
 const fs = require('fs')
 const CAND = path.join(__dirname, '..', '..', 'blender', 'previews', 'candidates', 'me_lanyard.glb');
 const PROD = path.join(__dirname, '..', '..', 'web', 'public', 'models', 'me.glb');
-const GLB = fs.existsSync(CAND) ? fs.readFileSync(CAND) : fs.readFileSync(PROD);)
+const GLB = fs.readFileSync(process.env.CANDIDATE_GLB || PROD);
 const W = +(process.argv[2] || 390), H = +(process.argv[3] || 844)
 ;(async () => {
   const b = await chromium.launch()

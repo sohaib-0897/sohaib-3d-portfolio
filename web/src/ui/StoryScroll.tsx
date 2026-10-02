@@ -35,7 +35,8 @@ function Beat({ id, progress, range }: { id: BeatId; progress: MotionValue<numbe
         aria-describedby={`ss-title-${id}`}
         onClick={() => (id === 'career' ? setContact(true) : openStory(id))}
       >
-        {copy.cta ?? 'Explore'} <span aria-hidden="true">→</span>
+        {copy.cta ?? 'View story'} <span aria-hidden="true">→</span>
+        {id === 'career' && <span className="ss-action-hint">Contact details</span>}
       </button>
     </motion.div>
   )

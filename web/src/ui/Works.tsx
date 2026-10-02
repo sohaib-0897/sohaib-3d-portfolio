@@ -3,7 +3,7 @@ import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
-import { WORKS, SECTION_COVERS, type WorkListItem, type WorkSection, type WorksLang } from '../data/works'
+import { WORKS, SECTION_COVERS, SECTION_COVER_SIZES, type WorkListItem, type WorkSection, type WorksLang } from '../data/works'
 import { getWorkDoc } from '../data/workDocs'
 
 const EASE = [0.22, 1, 0.36, 1]
@@ -15,6 +15,7 @@ function WorkLine({ item, onOpen }: { item: WorkListItem; onOpen: (item: WorkLis
     <li className="wk-line">
       <button className="wk-line-btn" onClick={() => onOpen(item)}>
         <span className="wk-line-name">{item.name}</span>
+        <span className="wk-line-action">View details <span aria-hidden="true">→</span></span>
         {hasMeta && (
           <span className="wk-line-meta">
             {item.meta && <span className="wk-line-num">{item.meta}</span>}
@@ -43,6 +44,7 @@ function SectionCard({
 }) {
   const [coverError, setCoverError] = useState(false)
   const cover = SECTION_COVERS[section.id]
+  const size = SECTION_COVER_SIZES[section.id]
   return (
     <div className="wk-card">
       <div className="wk-card-head">
@@ -50,9 +52,9 @@ function SectionCard({
         <h3 className="wk-card-title">{section.title}</h3>
         <span className="wk-card-tagline">{section.tagline}</span>
       </div>
-      <div className="wk-card-cover">
+      <div className="wk-card-cover" style={size && !coverError ? { aspectRatio: `${size.width} / ${size.height}` } : undefined}>
         {cover && !coverError ? (
-          <img src={cover} alt="" onError={() => setCoverError(true)} />
+          <img src={cover} width={size?.width} height={size?.height} loading="lazy" alt={`${section.title} screenshot`} onError={() => setCoverError(true)} />
         ) : (
           <div className="wk-card-cover-ph" aria-hidden="true">
             <span className="wk-card-cover-no">{section.no}</span>
@@ -123,11 +125,27 @@ function WorkDetail({
   onClose: () => void
 }) {
   const [bannerError, setBannerError] = useState(false)
+  const size = SECTION_COVER_SIZES[item.slug || '']
+  const [bannerRatio, setBannerRatio] = useState(size ? size.width / size.height : 16 / 9)
+  const panelRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null
+    panelRef.current?.querySelector<HTMLElement>('.wk-detail-close')?.focus({ preventScroll: true })
+    const trap = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || !panelRef.current) return
+      const controls = Array.from(panelRef.current.querySelectorAll<HTMLElement>('button, a[href]')).filter((el) => el.getClientRects().length > 0)
+      const first = controls[0], last = controls[controls.length - 1]
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+    }
+    window.addEventListener('keydown', trap)
+    return () => { window.removeEventListener('keydown', trap); opener?.focus({ preventScroll: true }) }
+  }, [])
   const doc = getWorkDoc(item.slug)
   const title = (doc && doc.title) || item.name
-  const banner = doc && doc.banner
+  const banner = doc?.banner ? `${import.meta.env.BASE_URL}${doc.banner.replace(/^\//, '')}` : null
   // 有 md 详情时展示完整信息；无 md 时详情页只保留标题 + 统一占位文案
-  const link = doc ? doc.link || item.link : null
+  const link = doc?.link || item.link
   const tags = doc ? doc.tags || item.tags : null
   // 副标题不含年份；标签单独做 badge 展示
   const sub = doc ? [item.meta, doc.role].filter(Boolean).join('  ·  ') : ''
@@ -144,6 +162,10 @@ function WorkDetail({
       />
       <motion.div
         className="wk-detail"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="work-title"
         initial={{ opacity: 0, scale: 0.985, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.99, y: 6 }}
@@ -154,8 +176,8 @@ function WorkDetail({
         </button>
 
         {banner && !bannerError ? (
-          <div className="wk-detail-banner">
-            <img src={banner} alt={title} onError={() => setBannerError(true)} />
+          <div className="wk-detail-banner has-image" style={{ aspectRatio: bannerRatio, width: `min(100%, calc(clamp(180px, 42vh, 460px) * ${bannerRatio}))` }}>
+            <img src={banner} alt={title} onLoad={(event) => setBannerRatio(event.currentTarget.naturalWidth / event.currentTarget.naturalHeight)} onError={() => setBannerError(true)} />
           </div>
         ) : (
           <div className="wk-detail-banner is-ph" aria-hidden="true">
@@ -163,10 +185,15 @@ function WorkDetail({
           </div>
         )}
 
-        <article className="wk-detail-article">
+        <article className="wk-detail-article" id="work-overview">
           <header className="wk-detail-head">
-            <h3 className="wk-detail-title">{title}</h3>
+            <h3 className="wk-detail-title" id="work-title">{title}</h3>
             {sub && <div className="wk-detail-sub">{sub}</div>}
+            <nav className="wk-detail-actions" aria-label={`${title} project actions`}>
+              <a className="wk-detail-link" href="#work-overview" aria-current="page">Details</a>
+              {item.live && <a className="wk-detail-link" href={item.live} target="_blank" rel="noopener noreferrer">Live <span aria-hidden="true">↗</span></a>}
+              {link && <a className="wk-detail-link" href={link} target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a>}
+            </nav>
             {tags && tags.length > 0 && (
               <div className="wk-detail-tags">
                 {tags.map((t, i) => (
@@ -197,16 +224,6 @@ function WorkDetail({
             </>
           )}
 
-          {link && (
-            <a
-              className="wk-detail-link"
-              href={link}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {data.visitLabel} <span aria-hidden="true">↗</span>
-            </a>
-          )}
         </article>
       </motion.div>
     </>

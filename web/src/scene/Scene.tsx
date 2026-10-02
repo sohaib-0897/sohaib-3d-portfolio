@@ -7,7 +7,7 @@ import Env from './Env'
 import { FOCUS_POINTS, FRAMES_PER_NODE } from '../data/focusPoints'
 import type { StoryId } from '../data/stories'
 import { useStore } from '../store'
-import { hotspotEls } from './storyAnchors'
+import { hotspotEls, lanyardEls } from './storyAnchors'
 import { storyKeys, storyCoord, STORY_END } from '../data/storyScroll'
 
 useGLTF.preload(`${import.meta.env.BASE_URL}models/me.glb`)
@@ -795,8 +795,11 @@ function Man2({
       if (el.dataset.emph !== emph) el.dataset.emph = emph
     }
 
-    // 6b) QA 探针（仅 URL 带 ?qa 时）：工牌包围盒的屏幕矩形 + 故事坐标，供 scripts/qa 检查文案卡片不遮挡工牌
-    if (QA_PROBE && story.badge) {
+    // 6b) Project the existing badge bounds for credentials; ?qa also exposes the read-only rect.
+    const lanyard = lanyardEls.trigger
+    const showLanyard = storyZone === 'badge' && !storyNow && !useStore.getState().contact
+    if (lanyard && !showLanyard && lanyard.dataset.visible !== '0') lanyard.dataset.visible = '0'
+    if ((QA_PROBE || (lanyard && showLanyard)) && story.badge) {
       camera.updateMatrixWorld()
       const bb = story.badgeBox
       story.badge.updateWorldMatrix(true, false)
@@ -812,14 +815,26 @@ function Man2({
         y0 = Math.min(y0, v.p.y)
         y1 = Math.max(y1, v.p.y)
       }
-      ;(window as any).__qa = {
+      const badgeRect = {
+        left: ox + (x0 + 1) * 0.5 * vw,
+        right: ox + (x1 + 1) * 0.5 * vw,
+        top: oy + (1 - y1) * 0.5 * vh,
+        bottom: oy + (1 - y0) * 0.5 * vh,
+      }
+      if (lanyard && showLanyard) {
+        const width = Math.max(44, badgeRect.right - badgeRect.left)
+        const height = Math.max(44, badgeRect.bottom - badgeRect.top)
+        const left = (badgeRect.left + badgeRect.right - width) / 2
+        const top = (badgeRect.top + badgeRect.bottom - height) / 2
+        lanyard.style.transform = `translate3d(${left}px, ${top}px, 0)`
+        lanyard.style.width = `${width}px`
+        lanyard.style.height = `${height}px`
+        const visible = left >= ox && top >= oy && left + width <= ox + vw && top + height <= oy + vh ? '1' : '0'
+        if (lanyard.dataset.visible !== visible) lanyard.dataset.visible = visible
+      }
+      if (QA_PROBE) (window as any).__qa = {
         c: sc,
-        badge: {
-          left: ox + (x0 + 1) * 0.5 * vw,
-          right: ox + (x1 + 1) * 0.5 * vw,
-          top: oy + (1 - y1) * 0.5 * vh,
-          bottom: oy + (1 - y0) * 0.5 * vh,
-        },
+        badge: badgeRect,
       }
     }
 

@@ -2,16 +2,17 @@
 
 A scroll-driven 3D portfolio and personal résumé. A stylized character model sits in a fixed 3D background, and scrolling drives the camera through the scene: hero → five résumé stops → interactive story beats → projects. Each résumé stop pushes the camera onto the matching project sticker on the character's face.
 
-**Sohaib Imran**, Backend / Applied AI Engineer.
+**Muhammad Sohaib Imran**, Software Engineer — Backend & Applied AI Systems.
 
 Featured Projects:
 
 | Project | Focus | Repository |
 | :--- | :--- | :--- |
-| **DataShield** | Endpoint DLP & incident response | [sohaib-0897/DataShield](https://github.com/sohaib-0897/DataShield) |
-| **OmniOps** | Multimodal autonomous agent system | [sohaib-0897/OmniOps](https://github.com/sohaib-0897/OmniOps) |
-| **VigilAI** | Real-time video intelligence | [sohaib-0897/VigilAi](https://github.com/sohaib-0897/VigilAi) |
+| **VigilAI** | Real-time video analytics platform | [sohaib-0897/VigilAi](https://github.com/sohaib-0897/VigilAi) |
+| **OmniOps** | Multimodal investigation backend | [sohaib-0897/OmniOps](https://github.com/sohaib-0897/OmniOps) |
+| **llm-inference-lab** | LLM inference engineering & benchmarking | [sohaib-0897/llm-inference-lab](https://github.com/sohaib-0897/llm-inference-lab) |
 | **InboxLearn** | Human-in-the-loop email triage | [sohaib-0897/InboxLearn](https://github.com/sohaib-0897/InboxLearn) |
+| **DataShield** | Endpoint DLP & incident response | [sohaib-0897/DataShield](https://github.com/sohaib-0897/DataShield) |
 
 This project is a customized fork of [dayinji/sen-3d-resume](https://github.com/dayinji/sen-3d-resume). See [Attribution & Licensing](docs/ATTRIBUTION.md).
 

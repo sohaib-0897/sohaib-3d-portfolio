@@ -11,6 +11,8 @@ import StoryHotspots from './ui/StoryHotspots'
 import StoryPanel from './ui/StoryPanel'
 import StoryScroll from './ui/StoryScroll'
 import ContactPanel from './ui/ContactPanel'
+import LanyardCredentials from './ui/LanyardCredentials'
+import SocialLinks from './ui/SocialLinks'
 import { useStore } from './store'
 
 function Backdrop() {
@@ -28,9 +30,9 @@ type Lang = 'en' | 'zh'
 
 const COPY_EN = {
   title: 'SOHAIB IMRAN',
-  role: 'Backend / Applied AI Engineer',
+  role: 'Software Engineer · Backend & Applied AI Systems',
   paragraphs: [
-    'I build backend systems and applied AI products across agents, computer vision, retrieval, automation, and security.',
+    'I build Python/FastAPI backends for ML workloads, real-time vision, hybrid retrieval, and distributed workers — from performance optimization to production APIs and deployment.',
   ],
 }
 // English-only site: zh reuses the English copy (the language toggle is hidden).
@@ -193,6 +195,7 @@ export default function App() {
       </motion.div>
 
       {/* 全屏胶片噪点蒙层（multiply 混合） */}
+      <SocialLinks opacity={heroChromeOpacity} />
       <NoiseOverlay />
 
       {/* 可滚动内容 */}
@@ -206,6 +209,7 @@ export default function App() {
 
       {/* 角色故事：手表 / 鞋子热点（位置由 Scene 每帧投影写入）+ 故事面板 */}
       <StoryHotspots />
+      <LanyardCredentials />
       <StoryPanel />
       {/* 工牌段「Let’s Connect」打开的联系面板 */}
       <ContactPanel />

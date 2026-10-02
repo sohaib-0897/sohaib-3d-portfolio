@@ -2,9 +2,10 @@ import { useEffect, useRef } from 'react'
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion'
 import { useStore } from '../store'
 import { CONTACT } from '../data/stories'
+import { PROFILE } from '../data/profile'
 
 const EASE = [0.22, 1, 0.36, 1]
-const FOCUSABLE = 'button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+const FOCUSABLE = 'button:not([disabled]), summary, [href], [tabindex]:not([tabindex="-1"])'
 
 // 联系面板：工牌段「Let’s Connect →」打开的小卡片（不是长篇故事面板）。
 // 只列站内已有的联系方式；未提供的（href: null）显示为明显的占位行，不可点击。
@@ -28,7 +29,7 @@ export default function ContactPanel() {
         return
       }
       if (e.key === 'Tab' && panelRef.current) {
-        const items = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE))
+        const items = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.getClientRects().length > 0)
         if (!items.length) return
         const first = items[0]
         const last = items[items.length - 1]
@@ -104,7 +105,7 @@ export default function ContactPanel() {
               {CONTACT.links.map((l) => (
                 <li key={l.label}>
                   {l.href ? (
-                    <a className="ct-row" href={l.href} target="_blank" rel="noopener noreferrer">
+                    <a className="ct-row" href={l.href} target={/^https?:/.test(l.href) ? '_blank' : undefined} rel={/^https?:/.test(l.href) ? 'noopener noreferrer' : undefined}>
                       <span className="ct-key">{l.label}</span>
                       <span className="ct-val">{l.value}</span>
                       <span className="ct-arrow" aria-hidden="true">
@@ -120,6 +121,43 @@ export default function ContactPanel() {
                 </li>
               ))}
             </ul>
+            <div className="ct-profile">
+              <p className="ct-intro"><strong>{PROFILE.name}</strong></p>
+              <details>
+                <summary>Experience</summary>
+                <p className="ct-intro">{PROFILE.summary}</p>
+                {PROFILE.experience.map((job) => (
+                  <div className="tl-group" key={job.company}>
+                    <h3 className="tl-group-head">{job.company}</h3>
+                    <p className="ct-intro">{job.role}<br />{job.dates} · {job.location}</p>
+                    <ul className="tl-points">{job.points.map((point) => <li key={point}>{point}</li>)}</ul>
+                  </div>
+                ))}
+              </details>
+              <details>
+                <summary>Education</summary>
+                {PROFILE.education.map((entry) => (
+                  <p className="ct-intro" key={entry.school}><strong>{entry.school}</strong><br />{entry.qualification}<br />{entry.detail}</p>
+                ))}
+              </details>
+              <details>
+                <summary>Certifications</summary>
+                {PROFILE.certifications.map((course) => (
+                  <p className="ct-intro" key={course.name}>
+                    <strong>{course.name}</strong><br />{course.provider} · {course.status}
+                    {course.certificate && <><br /><a className="about-link" href={course.certificate} target="_blank" rel="noopener noreferrer" aria-label={`Certificate: ${course.name}`}>Certificate ↗</a></>}
+                  </p>
+                ))}
+              </details>
+              <details>
+                <summary>Skills</summary>
+                {PROFILE.skills.map((skill) => <p className="ct-intro" key={skill.category}><strong>{skill.category}</strong><br />{skill.items}</p>)}
+              </details>
+              <details>
+                <summary>Leadership</summary>
+                {PROFILE.leadership.map((role) => <p className="ct-intro" key={role}>{role}</p>)}
+              </details>
+            </div>
           </motion.div>
         </>
       )}

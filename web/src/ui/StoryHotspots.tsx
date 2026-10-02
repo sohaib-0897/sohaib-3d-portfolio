@@ -35,7 +35,7 @@ export default function StoryHotspots() {
         >
           <span className="story-hotspot-dot" aria-hidden="true" />
           <span className="story-hotspot-label" aria-hidden="true">
-            Explore
+            {id === 'watch' ? 'View watch story' : 'View origin story'}
           </span>
         </button>
       ))}

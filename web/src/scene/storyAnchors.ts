@@ -4,3 +4,5 @@
 import type { StoryId } from '../data/stories'
 
 export const hotspotEls: Partial<Record<StoryId, HTMLButtonElement | null>> = {}
+
+export const lanyardEls: { trigger: HTMLButtonElement | null } = { trigger: null }

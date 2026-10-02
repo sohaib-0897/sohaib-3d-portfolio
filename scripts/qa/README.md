@@ -40,6 +40,12 @@ Run:
 node scripts/qa/story-qa.cjs
 ```
 
+Story and overflow checks use the production `web/public/models/me.glb` by default; set `CANDIDATE_GLB` explicitly to inspect an alternate model. Run GPU/browser suites one at a time to avoid distorting motion samples.
+
+`QA_DESKTOP_ONLY=1` limits the story suite to desktop keyboard/pointer interactions and writes `screenshots/story/desktop-result.json`.
+
+For stop-framing comparisons, preserve the pre-edit `final-qa.cjs` screenshots in `scripts/qa/screenshots/baseline/` (files `11_desktop_resume_focus-1.png` through `15_desktop_resume_focus-5.png`). `QA_BASELINE` can point to another baseline directory.
+
 ### 3. `overflow-check.cjs` / `overflow-sweep.cjs`
 Checks for horizontal layout overflow across various mobile viewport widths (360px, 390px, etc.).
 

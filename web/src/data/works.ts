@@ -18,6 +18,7 @@ export interface WorkListItem {
   meta?: string
   tags?: string[]
   link?: string
+  live?: string
   slug?: string
 }
 
@@ -58,15 +59,75 @@ const WORKS_EN: WorksLang = {
   openLabel: 'Explore',
   hint: 'Keep scrolling',
   awardsLabel: 'Awards',
-  visitLabel: 'View on GitHub',
+  visitLabel: 'Code',
   detailPlaceholder: 'Details coming soon.',
   phImageLabel: 'Image / Video',
   phButtonLabel: 'Link',
   countLabel: (n) => `${n} ${n === 1 ? 'project' : 'projects'}`,
   sections: [
     {
-      id: 'datashield',
+      id: 'vigilai',
       no: '01',
+      title: 'VigilAI',
+      tagline: 'Computer Vision',
+      items: [
+        {
+          name: 'Real-Time Video Analytics Platform',
+          link: 'https://github.com/sohaib-0897/VigilAi',
+          live: 'http://0897vigilai.duckdns.org/',
+          slug: 'vigilai',
+        },
+      ],
+      footer: 'FastAPI · YOLOv8 · ByteTrack · ONNX Runtime · PostgreSQL · Next.js · Docker',
+    },
+    {
+      id: 'omniops',
+      no: '02',
+      title: 'OmniOps',
+      tagline: 'Agents / Applied AI',
+      items: [
+        {
+          name: 'Multimodal Investigation Backend',
+          link: 'https://github.com/sohaib-0897/OmniOps',
+          live: 'https://omniops.duckdns.org/',
+          slug: 'omniops',
+        },
+      ],
+      footer: 'FastAPI · PostgreSQL · pgvector · Next.js · TypeScript · Docker',
+    },
+    {
+      id: 'llm-inference-lab',
+      no: '03',
+      title: 'llm-inference-lab',
+      tagline: 'Inference / Benchmarking',
+      items: [
+        {
+          name: 'LLM Inference Engineering & Benchmarking',
+          link: 'https://github.com/sohaib-0897/llm-inference-lab',
+          live: 'https://sohaib-0897.github.io/llm-inference-lab/',
+          slug: 'llm-inference-lab',
+        },
+      ],
+      footer: 'KV Cache · GQA · RoPE · INT8 · ONNX · Ollama',
+    },
+    {
+      id: 'inboxlearn',
+      no: '04',
+      title: 'InboxLearn',
+      tagline: 'Human-in-the-Loop ML',
+      items: [
+        {
+          name: 'Human-in-the-Loop Email Triage',
+          link: 'https://github.com/sohaib-0897/InboxLearn',
+          live: 'https://inboxlearn-d4kkvrrgrz6q9icqxnzqyq.streamlit.app/',
+          slug: 'inboxlearn',
+        },
+      ],
+      footer: 'Python · scikit-learn · SQLite · Streamlit · GitHub Actions',
+    },
+    {
+      id: 'datashield',
+      no: '05',
       title: 'DataShield',
       tagline: 'Security / Backend',
       items: [
@@ -76,49 +137,7 @@ const WORKS_EN: WorksLang = {
           slug: 'datashield',
         },
       ],
-      footer: 'Python · Flask · React · Tailwind CSS · Watchdog · Pytest',
-    },
-    {
-      id: 'omniops',
-      no: '02',
-      title: 'OmniOps',
-      tagline: 'Agents / Applied AI',
-      items: [
-        {
-          name: 'Multimodal Autonomous Agent System',
-          link: 'https://github.com/sohaib-0897/OmniOps',
-          slug: 'omniops',
-        },
-      ],
-      footer: 'FastAPI · Next.js · PostgreSQL · pgvector · Docker · LangGraph',
-    },
-    {
-      id: 'vigilai',
-      no: '03',
-      title: 'VigilAI',
-      tagline: 'Computer Vision',
-      items: [
-        {
-          name: 'Real-Time Video Intelligence',
-          link: 'https://github.com/sohaib-0897/VigilAi',
-          slug: 'vigilai',
-        },
-      ],
-      footer: 'Python · OpenCV · Computer Vision · Docker',
-    },
-    {
-      id: 'inboxlearn',
-      no: '04',
-      title: 'InboxLearn',
-      tagline: 'Human-in-the-Loop ML',
-      items: [
-        {
-          name: 'Human-in-the-Loop Email Triage Agent',
-          link: 'https://github.com/sohaib-0897/InboxLearn',
-          slug: 'inboxlearn',
-        },
-      ],
-      footer: 'Python · Streamlit · scikit-learn · SQLite · Pytest',
+      footer: 'Python · Flask · React · Watchdog · pytest · GitHub Actions',
     },
   ],
 }
@@ -129,11 +148,19 @@ export const WORKS: Record<'zh' | 'en', WorksLang> = {
   en: WORKS_EN,
 }
 
-// 板块配图，key 为板块 id，放到 public/works/covers/<id>.jpg（统一 3:2，768×512）。
-// 只用项目仓库里的真实截图；缺图的板块显示大编号占位（datashield / vigilai 暂无截图）。
 export const SECTION_COVERS: Record<string, string> = {
-  omniops: `${import.meta.env.BASE_URL}works/covers/omniops.jpg`,
-  inboxlearn: `${import.meta.env.BASE_URL}works/covers/inboxlearn.jpg`,
+  vigilai: `${import.meta.env.BASE_URL}works/covers/vigilai.png`,
+  omniops: `${import.meta.env.BASE_URL}works/covers/omniops.png`,
+  'llm-inference-lab': `${import.meta.env.BASE_URL}works/covers/llm-inference-lab.png`,
+  inboxlearn: `${import.meta.env.BASE_URL}works/covers/inboxlearn.png`,
+}
+
+// Native dimensions of the approved screenshots; holders use the same proportions.
+export const SECTION_COVER_SIZES: Record<string, { width: number; height: number }> = {
+  vigilai: { width: 1903, height: 912 },
+  omniops: { width: 1847, height: 822 },
+  'llm-inference-lab': { width: 1878, height: 892 },
+  inboxlearn: { width: 1068, height: 793 },
 }
 
 // 统计一个板块的作品数（items 或 groups 求和），用于索引行 hover 显示

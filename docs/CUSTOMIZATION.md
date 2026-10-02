@@ -20,6 +20,8 @@ Edit `web/src/ui/Resume.tsx`:
 
 ## 3. Projects & Works Gallery
 
+The five résumé camera stops retain their sticker order. The gallery order is independent and can prioritize projects without changing those anchors.
+
 ### Project Cards
 Edit `web/src/data/works.ts`:
 - Modify `WORKS_EN.sections`:
@@ -29,8 +31,9 @@ Edit `web/src/data/works.ts`:
   - `tagline`: One-line project pitch
   - `items`: Flat item details with `slug`, tech tags, and repository URL
 - Cover images:
-  - Place 3:2 cover images in `web/public/works/covers/<slug>.jpg` (recommended 768×512).
-  - Map them in `SECTION_COVERS` inside `web/src/data/works.ts`.
+  - Place approved screenshots in `web/public/works/covers/<slug>.png` without cropping.
+  - Map them in `SECTION_COVERS` and set their native width/height in `SECTION_COVER_SIZES` inside `web/src/data/works.ts`.
+- `link` is the GitHub URL; optional `live` adds a matching Live control in the detail dialog.
 
 ### Project Detail Pages
 Markdown detail pages live in `web/src/content/works/<slug>.md`:
@@ -57,3 +60,9 @@ Typography is loaded via Google Fonts in `web/index.html`:
 - Body & UI: System font stack / sans-serif fallback
 
 Offline font files for fallback are bundled under `web/public/fonts/`.
+
+## 6. Career Panel / CV Details
+
+Edit `web/src/data/profile.ts` for the full name, professional summary, experience, education, certifications, skills, and leadership. These appear in compact, initially collapsed lists in the existing “Let’s Connect” panel. Completed certifications have a `certificate` URL; ongoing courses use `null`.
+
+Contact options remain in `web/src/data/stories.ts`. GitHub and the supplied LinkedIn profile use short clickable labels; only use verified URLs.

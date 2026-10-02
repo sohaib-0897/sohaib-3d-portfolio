@@ -72,6 +72,7 @@ function WatchStory({ reduce }: { reduce: boolean }) {
                     )}
                   </span>
                   <span className="wt-watch">{s.watch}</span>
+                  <span className="wt-stage-action">{k === i ? 'Expanded' : 'Click to expand'}</span>
                 </button>
                 {/* 纯 CSS 展开（grid-rows 0fr→1fr）：不嵌套 AnimatePresence，避免拖住面板的退出动画 */}
                 <div className="wt-detail" aria-hidden={k !== i} {...((k !== i ? { inert: '' } : {}) as any)}>
